@@ -1,1 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
+/* Bootstrap CSS */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+.chart-container {
+  height: 320px;
+  position: relative;
+  overflow: hidden;
+}
+.chart-container canvas {
+  width: 90% !important;
+  height: 90% !important;
+  display: block;
+}
