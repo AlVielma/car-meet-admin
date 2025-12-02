@@ -12,3 +12,125 @@
   height: 90% !important;
   display: block;
 }
+
+
+    :host { display: block; }
+
+    .layout {
+      --sidebar-w: 264px;
+      --sidebar-w-collapsed: 84px;
+      --transition: 180ms ease;
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      min-height: 100svh;
+      background: var(--bs-body-bg);
+      color: var(--bs-body-color);
+    }
+    .layout.is-collapsed { grid-template-columns: var(--sidebar-w-collapsed) 1fr; }
+
+    /* Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100svh;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+      padding: .75rem;
+    }
+    .brand {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .25rem .25rem .75rem; margin-bottom: .5rem;
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    .brand-logo {
+      width: 28px; height: 28px; display: inline-grid; place-items: center;
+      font-size: 18px; border-radius: .5rem;
+      background: var(--bs-primary-bg-subtle); color: var(--bs-primary);
+    }
+    .brand-text { font-weight: 600; white-space: nowrap; }
+
+    .btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+
+    .nav-primary { margin-top: .25rem; gap: .25rem; display: flex; flex-direction: column; }
+    .nav-primary .nav-link {
+      display: flex; align-items: center; gap: .75rem;
+      color: var(--bs-body-color);
+      border-radius: .5rem; padding: .5rem .75rem;
+      transition: background-color var(--transition), color var(--transition);
+      white-space: nowrap;
+    }
+    .nav-primary .nav-link .link-icon { font-size: 1.1rem; width: 1.25rem; text-align: center; opacity: .85; }
+    .nav-primary .nav-link:hover { background: var(--bs-secondary-bg); }
+    .nav-primary .nav-link.active { background: var(--bs-primary); color: #fff; }
+    .nav-primary .nav-link.active .link-icon { opacity: 1; }
+
+    .sidebar-footer { margin-top: auto; padding-top: .75rem; border-top: 1px solid var(--bs-border-color); }
+
+    /* Content + Topbar */
+    .content { display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .5rem .75rem; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(140%) blur(6px);
+      background: color-mix(in oklab, var(--bs-body-bg) 86%, transparent);
+    }
+    .page-title { font-weight: 600; }
+
+    .avatar-btn { display: inline-flex; align-items: center; gap: .5rem; background: transparent; border: 1px solid var(--bs-border-color); border-radius: 999px; padding: .125rem .375rem .125rem .125rem; }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 999px;
+      background: var(--bs-primary); color: #fff;
+      display: grid; place-items: center; font-size: .85rem; font-weight: 600; text-transform: uppercase;
+    }
+    .avatar.lg { width: 40px; height: 40px; font-size: .95rem; }
+    .caret { font-size: .65rem; opacity: .7; }
+
+    .user { position: relative; }
+    .menu {
+      position: absolute; right: 0; top: calc(100% + .5rem);
+      min-width: 240px; background: var(--bs-body-bg); color: var(--bs-body-color);
+      border: 1px solid var(--bs-border-color); border-radius: .5rem; box-shadow: var(--bs-box-shadow);
+      padding: .5rem;
+    }
+    .menu-header { display: flex; align-items: center; gap: .5rem; padding: .25rem .25rem .5rem; }
+    .menu .email { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dropdown-item { width: 100%; text-align: left; background: transparent; border: 0; padding: .5rem .5rem; border-radius: .375rem; }
+    .dropdown-item:hover { background: var(--bs-secondary-bg); }
+
+    .main { padding: 1rem; }
+
+    /* Estado colapsado (desktop) */
+    .layout.is-collapsed .brand-text,
+    .layout.is-collapsed .link-text,
+    .layout.is-collapsed .sidebar-footer .btn span.link-text { display: none; }
+    .layout.is-collapsed .brand,
+    .layout.is-collapsed .nav-primary .nav-link { justify-content: center; }
+
+    /* Overlay para móvil y cierre de menús */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.2);
+      opacity: 0; pointer-events: none;
+      transition: opacity var(--transition);
+      z-index: 1030;
+    }
+    .overlay.show { opacity: 1; pointer-events: auto; }
+
+    /* Móvil: sidebar sobrepuesto */
+    @media (max-width: 767.98px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed; inset: 0 auto 0 0;
+        width: var(--sidebar-w);
+        transform: translateX(-100%);
+        z-index: 1040;
+        box-shadow: var(--bs-box-shadow);
+        transition: transform var(--transition);
+      }
+      /* Usamos mobileSidebarOpen para el modo overlay */
+      .overlay.show + :where(*) {}
+      :host-context(html) .layout .sidebar { will-change: transform; }
+      .layout .sidebar.is-open { transform: translateX(0); }
+    }
+  

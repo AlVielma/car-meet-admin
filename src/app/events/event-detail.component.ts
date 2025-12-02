@@ -1,332 +1,255 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import {
-  ReactiveFormsModule,
-  FormBuilder,
-  Validators,
-  AbstractControl,
-  ValidationErrors,
-} from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import Swal from 'sweetalert2';
-import { ENV } from '../core/config/env';
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+  computed,
+} from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { EventService } from './services/event.service';
 import { NotifyService } from '../core/services/notify.service';
-
-type EventDetail = {
-  id: number;
-  name: string;
-  description: string | null;
-  location: string;
-  date: string;
-  startTime: string;
-  endTime: string | null;
-  status: 'ACTIVE' | 'CANCELLED' | 'FINISHED' | string;
-};
-
-function endAfterStartOptional(group: AbstractControl): ValidationErrors | null {
-  const date = group.get('date')?.value as string | null;
-  const start = group.get('startTime')?.value as string | null;
-  const end = group.get('endTime')?.value as string | null;
-  if (!date || !start || !end) return null;
-  const startDt = new Date(`${date}T${start}:00`);
-  const endDt = new Date(`${date}T${end}:00`);
-  return endDt <= startDt ? { endBeforeStart: true } : null;
-}
+import type { Event, EventParticipant } from './models/event.models';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-event-detail',
-  imports: [ReactiveFormsModule],
+  imports: [RouterLink, DatePipe, FormsModule],
   template: `
-    <h1 class="h5 mb-3">Editar evento</h1>
-    @if (loading()) {
-    <div class="spinner-border"></div>
-    } @if (!loading()) {
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="vstack gap-3">
-      <div class="form-floating">
-        <input
-          id="name"
-          class="form-control"
-          type="text"
-          placeholder="Nombre"
-          formControlName="name"
-          [class.is-invalid]="invalid(name)"
-        />
-        <label for="name">Nombre</label>
-        @if (invalid(name)) {
-        <div class="invalid-feedback d-block">
-          @if (name.errors?.['minlength']) { Mínimo 3 caracteres } @if (name.errors?.['maxlength'])
-          { Máximo 100 caracteres }
+    <div class="container-fluid py-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
         </div>
-        }
-      </div>
+      }
 
-      <div class="form-floating">
-        <textarea
-          id="description"
-          class="form-control"
-          placeholder="Descripción"
-          style="height: 120px"
-          formControlName="description"
-          [class.is-invalid]="invalid(description)"
-        ></textarea>
-        <label for="description">Descripción (opcional)</label>
-        @if (invalid(description)) {
-        <div class="invalid-feedback d-block">
-          @if (description.errors?.['maxlength']) { Máximo 2000 caracteres }
+      @if (!loading() && event()) {
+        <div class="mb-4">
+          <a class="btn btn-sm btn-outline-secondary mb-3" routerLink="/events">
+            <i class="bi bi-arrow-left me-1"></i>
+            Volver
+          </a>
+
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h1 class="h4 mb-2">{{ event()!.name }}</h1>
+              <span
+                class="badge"
+                [class.bg-success]="event()!.status === 'ACTIVE'"
+                [class.bg-primary]="event()!.status === 'FINISHED'"
+                [class.bg-danger]="event()!.status === 'CANCELLED'">
+                {{ statusLabel(event()!.status) }}
+              </span>
+            </div>
+            <a
+              class="btn btn-primary"
+              [routerLink]="['/events', event()!.id, 'edit']">
+              <i class="bi bi-pencil me-1"></i>
+              Editar
+            </a>
+          </div>
         </div>
-        }
-      </div>
 
-      <div class="form-floating">
-        <input
-          id="location"
-          class="form-control"
-          type="text"
-          placeholder="Ubicación"
-          formControlName="location"
-          [class.is-invalid]="invalid(location)"
-        />
-        <label for="location">Ubicación</label>
-        @if (invalid(location)) {
-        <div class="invalid-feedback d-block">
-          @if (location.errors?.['minlength']) { Mínimo 3 caracteres } @if
-          (location.errors?.['maxlength']) { Máximo 200 caracteres }
+        <div class="row g-4">
+          <!-- Info del evento -->
+          <div class="col-12 col-lg-4">
+            <div class="card shadow-sm">
+              <div class="card-header ">
+                <h5 class="card-title mb-0">Información</h5>
+              </div>
+              <div class="card-body">
+                <p class="mb-2">
+                  <i class="bi bi-calendar3 me-2 text-muted"></i>
+                  {{ event()!.date | date: 'dd/MM/yyyy HH:mm' }}
+                </p>
+                <p class="mb-2">
+                  <i class="bi bi-geo-alt me-2 text-muted"></i>
+                  {{ event()!.location }}
+                </p>
+                <p class="mb-2">
+                  <i class="bi bi-people me-2 text-muted"></i>
+                  {{ event()!._count?.participants || 0 }} /
+                  {{ event()!.max_participants }} participantes
+                </p>
+                <hr />
+                <p class="text-muted small mb-0">
+                  <strong>Organizador:</strong><br />
+                  {{ event()!.organizer?.name ?? '' }}<br />
+                  {{ event()!.organizer?.email ?? '' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Descripción + participantes -->
+          <div class="col-12 col-lg-8">
+            <div class="card shadow-sm mb-4">
+              <div class="card-header ">
+                <h5 class="card-title mb-0">Descripción</h5>
+              </div>
+              <div class="card-body">
+                <p class="mb-0">{{ event()!.description }}</p>
+              </div>
+            </div>
+
+            <div class="card shadow-sm">
+              <div class="card-header ">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="card-title mb-0">Participantes</h5>
+                  <select
+                    class="form-select form-select-sm w-auto"
+                    [(ngModel)]="participantFilter"
+                    (change)="loadParticipants()">
+                    <option value="">Todos</option>
+                    <option value="PENDING">Pendientes</option>
+                    <option value="CONFIRMED">Confirmados</option>
+                    <option value="CANCELLED">Cancelados</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card-body">
+                @if (loadingParticipants()) {
+                  <div class="text-center py-3">
+                    <div
+                      class="spinner-border spinner-border-sm text-primary"
+                      role="status"></div>
+                  </div>
+                }
+
+                @if (!loadingParticipants() && participants().length > 0) {
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Usuario</th>
+                          <th>Auto</th>
+                          <th>Estado</th>
+                          <th>Fecha</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (p of participants(); track p.id) {
+                          <tr>
+                            <td>
+                              <div>{{ p.user.name }}</div>
+                              <small class="text-muted">{{
+                                p.user.email
+                              }}</small>
+                            </td>
+                            <td>
+                              {{ p.car.make }} {{ p.car.model }}
+                              {{ p.car.year }}
+                            </td>
+                            <td>
+                              <span
+                                class="badge"
+                                [class.bg-warning]="p.status === 'PENDING'"
+                                [class.bg-success]="p.status === 'CONFIRMED'"
+                                [class.bg-danger]="p.status === 'CANCELLED'">
+                                {{ participantStatusLabel(p.status) }}
+                              </span>
+                            </td>
+                            <td>{{ p.registeredAt | date: 'dd/MM/yyyy' }}</td>
+                            <td>
+                              <a
+                                class="btn btn-sm btn-outline-primary"
+                                [routerLink]="[
+                                  '/approvals',
+                                  event()!.id,
+                                  p.id
+                                ]">
+                                Ver
+                              </a>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+
+                @if (!loadingParticipants() && participants().length === 0) {
+                  <p class="text-muted text-center mb-0">
+                    No hay participantes
+                  </p>
+                }
+              </div>
+            </div>
+          </div>
         </div>
-        }
-      </div>
-
-      <div class="form-floating">
-        <input id="date" class="form-control" type="date" formControlName="date" />
-        <label for="date">Fecha (opcional)</label>
-      </div>
-
-      <div class="form-floating">
-        <input
-          id="startTime"
-          class="form-control"
-          type="time"
-          formControlName="startTime"
-          [class.is-invalid]="form.errors?.['endBeforeStart']"
-        />
-        <label for="startTime">Hora de inicio (opcional)</label>
-      </div>
-
-      <div class="form-floating">
-        <input
-          id="endTime"
-          class="form-control"
-          type="time"
-          formControlName="endTime"
-          [class.is-invalid]="form.errors?.['endBeforeStart']"
-        />
-        <label for="endTime">Hora de fin (opcional)</label>
-        @if (form.errors?.['endBeforeStart']) {
-        <div class="invalid-feedback d-block">La hora de fin debe ser posterior a la de inicio</div>
-        }
-      </div>
-
-      <div class="form-floating">
-        <select id="status" class="form-select" formControlName="status">
-          <option value="">Sin cambio</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="CANCELLED">CANCELLED</option>
-          <option value="FINISHED">FINISHED</option>
-        </select>
-        <label for="status">Estado</label>
-      </div>
-
-      <div class="d-flex gap-2">
-        <button class="btn btn-primary" type="submit" [disabled]="submitting()">Guardar</button>
-        <button
-          type="button"
-          class="btn btn-outline-warning"
-          (click)="cancelEvent()"
-          [disabled]="currentStatus() !== 'ACTIVE'"
-        >
-          Cancelar evento
-        </button>
-        <button type="button" class="btn btn-outline-danger ms-auto" (click)="deleteEvent()">
-          Eliminar
-        </button>
-      </div>
-    </form>
-    }
+      }
+    </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'd-block py-4' },
+  host: { class: 'd-block' },
 })
 export class EventDetailComponent {
-  private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
+  private eventService = inject(EventService);
   private notify = inject(NotifyService);
 
+  event = signal<Event | null>(null);
+  participants = signal<EventParticipant[]>([]);
   loading = signal(true);
-  submitting = signal(false);
-  id = signal<number>(0);
-  currentStatus = signal<'ACTIVE' | 'CANCELLED' | 'FINISHED' | string>('ACTIVE');
-
-  form = this.fb.group(
-    {
-      name: ['', [Validators.minLength(3), Validators.maxLength(100)]],
-      description: ['', [Validators.maxLength(2000)]],
-      location: ['', [Validators.minLength(3), Validators.maxLength(200)]],
-      date: [''],
-      startTime: [''],
-      endTime: [''],
-      status: [''],
-    },
-    { validators: [endAfterStartOptional] }
-  );
-
-  get name(): AbstractControl {
-    return this.form.controls['name'];
-  }
-  get description(): AbstractControl {
-    return this.form.controls['description'];
-  }
-  get location(): AbstractControl {
-    return this.form.controls['location'];
-  }
-  get date(): AbstractControl {
-    return this.form.controls['date'];
-  }
-  get startTime(): AbstractControl {
-    return this.form.controls['startTime'];
-  }
-  get endTime(): AbstractControl {
-    return this.form.controls['endTime'];
-  }
-  get status(): AbstractControl {
-    return this.form.controls['status'];
-  }
-
-  invalid(ctrl: AbstractControl) {
-    return ctrl.invalid && (ctrl.dirty || ctrl.touched);
-  }
-
-  private toDateInput(iso: string) {
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
-  }
-  private toTimeInput(iso: string) {
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  }
+  loadingParticipants = signal(true);
+  participantFilter: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | '' = '';
 
   constructor() {
-    const idParam = parseInt(this.route.snapshot.params['id'], 10);
-    this.id.set(idParam);
-    this.fetch();
-  }
-
-  fetch() {
-    this.loading.set(true);
-    this.http
-      .get<{ success: boolean; message: string; data: EventDetail }>(
-        `${ENV.apiBaseUrl}/events/${this.id()}`
-      )
-      .subscribe({
-        next: (resp) => {
-          const e = resp?.data;
-          if (e) {
-            this.currentStatus.set(e.status);
-            this.form.patchValue({
-              name: e.name,
-              description: e.description ?? '',
-              location: e.location,
-              date: this.toDateInput(e.date),
-              startTime: this.toTimeInput(e.startTime),
-              endTime: e.endTime ? this.toTimeInput(e.endTime) : '',
-              status: '',
-            });
-          }
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loading.set(false);
-          this.notify.error('No se pudo cargar el evento.');
-        },
-      });
-  }
-
-  onSubmit() {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.notify.warning('Revisa los campos del formulario.');
-      return;
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.loadEvent(id);
+      this.loadParticipants();
     }
-    const { name, description, location, date, startTime, endTime, status } =
-      this.form.getRawValue();
-    const payload: any = {};
-    if (name?.trim()) payload.name = name.trim();
-    if (description !== undefined) payload.description = description?.trim() || null;
-    if (location?.trim()) payload.location = location.trim();
-    if (date) payload.date = new Date(date).toISOString();
-    if (date && startTime) payload.startTime = new Date(`${date}T${startTime}:00`).toISOString();
-    if (date && endTime) payload.endTime = new Date(`${date}T${endTime}:00`).toISOString();
-    if (status) payload.status = status;
+  }
 
-    this.submitting.set(true);
-    this.http.put(`${ENV.apiBaseUrl}/events/${this.id()}`, payload).subscribe({
-      next: async () => {
-        this.submitting.set(false);
-        this.notify.success('Evento actualizado.');
-        await this.router.navigate(['/events']);
+  loadEvent(id: string) {
+    this.eventService.getEventById(id).subscribe({
+      next: (event) => {
+        this.event.set(event);
+        this.loading.set(false);
       },
       error: () => {
-        this.submitting.set(false);
-        this.notify.error('No se pudo actualizar el evento.');
+        this.notify.error('Error al cargar evento');
+        this.loading.set(false);
       },
     });
   }
 
-  cancelEvent() {
-    Swal.fire({
-      title: '¿Cancelar evento?',
-      text: 'Se marcará como CANCELLED.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, cancelar',
-      cancelButtonText: 'Volver',
-      confirmButtonColor: '#fd7e14',
-      cancelButtonColor: '#6c757d',
-      reverseButtons: true,
-    }).then((result) => {
-      if (!result.isConfirmed) return;
-      this.http.patch(`${ENV.apiBaseUrl}/events/${this.id()}/cancel`, {}).subscribe({
-        next: async () => {
-          this.notify.success('Evento cancelado.');
-          await this.router.navigate(['/events']);
-        },
-        error: () => this.notify.error('No se pudo cancelar el evento.'),
-      });
+  loadParticipants() {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+
+    this.loadingParticipants.set(true);
+    const status = this.participantFilter || undefined;
+    this.eventService.getParticipants(id, status as any).subscribe({
+      next: (participants) => {
+        this.participants.set(participants);
+        this.loadingParticipants.set(false);
+      },
+      error: () => {
+        this.notify.error('Error al cargar participantes');
+        this.loadingParticipants.set(false);
+      },
     });
   }
 
-  deleteEvent() {
-    Swal.fire({
-      title: '¿Eliminar evento?',
-      text: 'Esta acción no se puede deshacer.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Volver',
-      confirmButtonColor: '#dc3545',
-      cancelButtonColor: '#6c757d',
-      reverseButtons: true,
-    }).then((result) => {
-      if (!result.isConfirmed) return;
-      this.http.delete(`${ENV.apiBaseUrl}/events/${this.id()}`).subscribe({
-        next: async () => {
-          this.notify.success('Evento eliminado.');
-          await this.router.navigate(['/events']);
-        },
-        error: () => this.notify.error('No se pudo eliminar el evento.'),
-      });
-    });
+  statusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      DRAFT: 'Borrador',
+      ACTIVE: 'Activo',
+      COMPLETED: 'Completado',
+      CANCELLED: 'Cancelado',
+    };
+    return labels[status] || status;
+  }
+
+  participantStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      PENDING: 'Pendiente',
+      CONFIRMED: 'Confirmado',
+      CANCELLED: 'Cancelado',
+    };
+    return labels[status] || status;
   }
 }
