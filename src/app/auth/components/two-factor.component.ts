@@ -8,7 +8,7 @@ import { NotifyService } from '../../core/services/notify.service';
   selector: 'app-two-factor',
   imports: [ReactiveFormsModule],
   template: `
-    <div class="login-container">
+    <div class="login-container overflow-hidden">
       <div class="row justify-content-center align-items-center min-vh-100 py-5">
         <div class="col-12 col-sm-10 col-md-6 col-lg-5 col-xl-4">
           <div class="text-center mb-4">
@@ -183,7 +183,7 @@ import { NotifyService } from '../../core/services/notify.service';
       color: var(--bs-body-color);
       font-size: 0.9rem;
     }
-    
+
  h1, h2 {
       color: #fff;
     }
