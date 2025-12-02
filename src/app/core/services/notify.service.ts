@@ -7,7 +7,7 @@ export class NotifyService {
   private notyf = new Notyf({
     duration: 3000,
     ripple: true,
-    position: { x: 'right', y: 'top' },
+    position: { x: 'center', y: 'top' },
     types: [
       {
         type: 'info',

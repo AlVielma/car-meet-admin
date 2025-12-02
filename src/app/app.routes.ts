@@ -5,21 +5,19 @@ import { guestGuard } from './core/guards/guest.guard';
 export const routes: Routes = [
   {
     path: 'auth',
-    canActivate: [guestGuard],
     children: [
       {
         path: 'login',
+        canActivate: [guestGuard],
         loadComponent: () =>
           import('./auth/components/login.component').then((m) => m.LoginComponent),
       },
       {
-        path: 'two-factor',
+        path: '2fa',
+        canActivate: [guestGuard],
         loadComponent: () =>
-          import('./auth/components/two-factor.component').then(
-            (m) => m.TwoFactorComponent
-          ),
+          import('./auth/components/two-factor.component').then((m) => m.TwoFactorComponent),
       },
-      { path: '', redirectTo: 'login', pathMatch: 'full' },
     ],
   },
   {

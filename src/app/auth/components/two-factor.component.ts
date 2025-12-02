@@ -8,41 +8,221 @@ import { NotifyService } from '../../core/services/notify.service';
   selector: 'app-two-factor',
   imports: [ReactiveFormsModule],
   template: `
-    <div class="row justify-content-center">
-      <div class="col-12 col-sm-10 col-md-7 col-lg-5">
-        <div class="card shadow-sm">
-          <div class="card-body p-4">
-            <h1 class="h5 mb-3">Verificar código</h1>
+    <div class="login-container">
+      <div class="row justify-content-center align-items-center min-vh-100 py-5">
+        <div class="col-12 col-sm-10 col-md-6 col-lg-5 col-xl-4">
+          <div class="text-center mb-4">
+            <div class="logo-circle mb-3">
+              <i class="bi bi-shield-check"></i>
+            </div>
+            <h1 class="h3 fw-bold mb-2">Verificación 2FA</h1>
+            <p class="text-muted">Ingresa el código enviado a tu correo</p>
+          </div>
 
-            <form [formGroup]="form" (ngSubmit)="onSubmit()" class="vstack gap-3">
-              <div class="form-floating">
-                <input
-                  id="code"
-                  class="form-control"
-                  type="text"
-                  placeholder="000000"
-                  formControlName="code"
-                  maxlength="6"
-                />
-                <label for="code">Código de 6 dígitos</label>
+          <div class="card border-0 shadow-lg">
+            <div class="card-body p-4 p-sm-5">
+              <div class="text-center mb-4">
+                <div class="email-badge">
+                  <i class="bi bi-envelope-fill me-2"></i>
+                  <small>{{ email() }}</small>
+                </div>
               </div>
 
-              <button class="btn btn-primary w-100" type="submit" [disabled]="submitting()">
-                @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                Verificar
-              </button>
+              <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+                <div class="mb-4">
+                  <label for="code" class="form-label fw-medium">
+                    <i class="bi bi-key me-2"></i>Código de verificación
+                  </label>
+                  <input
+                    id="code"
+                    class="form-control form-control-lg text-center code-input"
+                    type="text"
+                    placeholder="000000"
+                    formControlName="code"
+                    maxlength="6"
+                    [class.is-invalid]="invalid('code')"
+                    autocomplete="one-time-code"
+                  />
+                  @if (invalid('code')) {
+                    <div class="invalid-feedback text-center">
+                      Ingresa un código de 6 dígitos
+                    </div>
+                  }
+                  <div class="form-text text-center mt-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    El código expira en 5 minutos
+                  </div>
+                </div>
 
-              <button class="btn btn-link w-100" type="button" (click)="resendCode()">
-                Reenviar código
-              </button>
-            </form>
+                <button 
+                  class="btn btn-primary btn-lg w-100 fw-semibold mb-3" 
+                  type="submit" 
+                  [disabled]="submitting()">
+                  @if (submitting()) {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Verificando...
+                  } @else {
+                    <i class="bi bi-check-circle me-2"></i>
+                    Verificar código
+                  }
+                </button>
+
+                <button 
+                  class="btn btn-outline-secondary btn-lg w-100 fw-semibold" 
+                  type="button" 
+                  (click)="resendCode()"
+                  [disabled]="resending()">
+                  @if (resending()) {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Reenviando...
+                  } @else {
+                    <i class="bi bi-arrow-clockwise me-2"></i>
+                    Reenviar código
+                  }
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="text-center mt-4">
+            <a 
+              class="text-light text-decoration-none" 
+              href="/auth/login">
+              <i class="bi bi-arrow-left me-1"></i>
+              Volver al inicio de sesión
+            </a>
           </div>
         </div>
       </div>
     </div>
   `,
+  styles: [`
+    .login-container {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      min-height: 100vh;
+    }
+
+    .logo-circle {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 100%);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo-circle i {
+      font-size: 2.5rem;
+      color: white;
+    }
+
+    .card {
+      border-radius: 1rem;
+      backdrop-filter: blur(10px);
+      background: var(--bs-body-bg);
+    }
+
+    .email-badge {
+      background: var(--bs-secondary-bg);
+      color: var(--bs-body-color);
+      padding: 0.75rem 1.25rem;
+      border-radius: 2rem;
+      display: inline-flex;
+      align-items: center;
+      font-weight: 500;
+    }
+
+    .code-input {
+      letter-spacing: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      padding: 1rem;
+    }
+
+    .code-input:focus {
+      border-color: #495057;
+      box-shadow: 0 0 0 0.25rem rgba(73, 80, 87, 0.25);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #495057 0%, #212529 100%);
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+      background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
+    }
+
+    .btn-primary:disabled {
+      background: linear-gradient(135deg, #495057 0%, #212529 100%);
+      opacity: 0.7;
+    }
+
+    .btn-outline-secondary {
+      border: 2px solid var(--bs-border-color);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      transition: all 0.3s ease;
+      color: var(--bs-body-color);
+    }
+
+    .btn-outline-secondary:hover:not(:disabled) {
+      background: var(--bs-secondary-bg);
+      border-color: var(--bs-border-color);
+      transform: translateY(-2px);
+    }
+
+    .form-label {
+      color: var(--bs-body-color);
+      font-size: 0.9rem;
+    }
+    
+ h1, h2 {
+      color: #fff;
+    }
+
+    .text-muted {
+     color: rgb(255 255 255 / 75%) !important;
+    }
+
+
+    .text-light {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+
+    .text-light:hover {
+      color: rgba(255, 255, 255, 1) !important;
+    }
+
+    @media (max-width: 576px) {
+      .card-body {
+        padding: 1.5rem !important;
+      }
+
+      .logo-circle {
+        width: 60px;
+        height: 60px;
+      }
+
+      .logo-circle i {
+        font-size: 2rem;
+      }
+
+      .code-input {
+        font-size: 1.2rem;
+        letter-spacing: 0.3rem;
+      }
+    }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'd-block py-4' },
+  host: { class: 'd-block' },
 })
 export class TwoFactorComponent {
   private fb = inject(FormBuilder);
@@ -52,6 +232,7 @@ export class TwoFactorComponent {
   private notify = inject(NotifyService);
 
   submitting = signal(false);
+  resending = signal(false);
   email = signal<string>('');
 
   form = this.fb.group({
@@ -63,10 +244,14 @@ export class TwoFactorComponent {
     this.email.set(emailParam);
   }
 
+  invalid = (control: keyof typeof this.form.controls) => {
+    const c = this.form.controls[control];
+    return c.invalid && (c.dirty || c.touched);
+  };
+
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.notify.warning('Revisa el código (6 dígitos).');
       return;
     }
     const code = this.form.controls.code.value ?? '';
@@ -80,12 +265,12 @@ export class TwoFactorComponent {
       .verifyTwoFactorCode({ email, code })
       .then(async () => {
         this.submitting.set(false);
-        this.notify.success('Inicio de sesión exitoso.');
+        this.notify.success('Inicio de sesión exitoso');
         await this.router.navigate(['/dashboard']);
       })
       .catch(() => {
         this.submitting.set(false);
-        this.notify.error('Código inválido o expirado.');
+        this.notify.error('Código inválido o expirado');
       });
   }
 
@@ -94,9 +279,17 @@ export class TwoFactorComponent {
     const auth = this.auth as AuthService & {
       resendTwoFactorCode: (email: string) => Promise<void>;
     };
+
+    this.resending.set(true);
     auth
       .resendTwoFactorCode(email)
-      .then(() => this.notify.info('Código reenviado. Revisa tu correo.'))
-      .catch(() => this.notify.error('No se pudo reenviar el código.'));
+      .then(() => {
+        this.resending.set(false);
+        this.notify.success('Código reenviado. Revisa tu correo');
+      })
+      .catch(() => {
+        this.resending.set(false);
+        this.notify.error('No se pudo reenviar el código');
+      });
   }
 }
