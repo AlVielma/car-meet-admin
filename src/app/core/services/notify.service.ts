@@ -25,15 +25,18 @@ export class NotifyService {
   });
 
   success(message: string) {
-    this.notyf.success(message);
+    console.log('SUCCESS:', message);
   }
+
   error(message: string) {
-    this.notyf.error(message);
+    console.error('ERROR:', message);
   }
+
   info(message: string) {
-    this.notyf.open({ type: 'info', message });
+    console.info('INFO:', message);
   }
+
   warning(message: string) {
-    this.notyf.open({ type: 'warning', message });
+    console.warn('WARNING:', message);
   }
 }
