@@ -101,6 +101,8 @@ import { NotifyService } from '../../core/services/notify.service';
     .login-container {
       background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
       min-height: 100vh;
+          width: 100%;
+    overflow: hidden;
     }
 
     .logo-circle {
