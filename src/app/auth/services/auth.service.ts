@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import { ENV } from '../../core/config/env';
 import { SessionService } from '../../core/services/session.service';
 
-export type LoginPayload = { email: string; password: string };
-export type VerifyCodePayload = { email: string; code: string };
+export type LoginPayload = { email: string; password: string; recaptchaToken: string };
+export type VerifyCodePayload = { email: string; code: string; recaptchaToken: string };
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
