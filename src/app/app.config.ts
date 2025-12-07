@@ -8,6 +8,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { RECAPTCHA_SETTINGS, RecaptchaSettings } from 'ng-recaptcha';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
@@ -17,5 +18,11 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     importProvidersFrom(NgbModule),
     provideHttpClient(withInterceptors([authInterceptor])),
+    {
+      provide: RECAPTCHA_SETTINGS,
+      useValue: {
+        siteKey: '6Lenc8cqAAAAAO_GCDrYVC8BPFPPdqUUvSmY4HZS',
+      } as RecaptchaSettings,
+    },
   ],
 };
