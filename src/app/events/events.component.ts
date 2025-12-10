@@ -6,15 +6,15 @@ import {
   computed,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { NgOptimizedImage, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { EventService } from './services/event.service';
 import { NotifyService } from '../core/services/notify.service';
 import type { Event, EventFilters } from './models/event.models';
-import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-events',
-  imports: [RouterLink, FormsModule, DatePipe],
+  imports: [RouterLink, FormsModule, DatePipe, NgOptimizedImage],
   template: `
     <div class="container-fluid py-4">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -72,37 +72,61 @@ import { DatePipe } from '@angular/common';
         </div>
       }
 
-     @if (!loading() && events().length > 0) {
+      @if (!loading() && events().length > 0) {
         <div class="row g-3">
           @for (event of events(); track event.id) {
             <div class="col-12 col-lg-6">
-              <div class="card shadow-sm h-100">
-                <div class="card-body">
-                  <div
-                    class="d-flex justify-content-between align-items-start mb-2">
-                    <h5 class="card-title mb-0">{{ event.name }}</h5>
+              <div class="card event-card shadow-sm h-100">
+                <!-- Banner del evento -->
+                @if (event.photoUrl) {
+                  <div class="event-banner">
+                    <img
+                      [ngSrc]="event.photoUrl"
+                      [alt]="event.name"
+                      fill
+                      priority
+                      class="event-image" />
+                    <div class="event-overlay">
+                      <span
+                        class="badge position-absolute top-0 end-0 m-3"
+                        [class.bg-success]="event.status === 'ACTIVE'"
+                        [class.bg-primary]="event.status === 'FINISHED'"
+                        [class.bg-danger]="event.status === 'CANCELLED'">
+                        {{ statusLabel(event.status) }}
+                      </span>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="event-banner event-placeholder">
+                    <i class="bi bi-calendar-event placeholder-icon"></i>
                     <span
-                      class="badge"
+                      class="badge position-absolute top-0 end-0 m-3"
                       [class.bg-success]="event.status === 'ACTIVE'"
                       [class.bg-primary]="event.status === 'FINISHED'"
                       [class.bg-danger]="event.status === 'CANCELLED'">
                       {{ statusLabel(event.status) }}
                     </span>
                   </div>
+                }
 
-                  <p class="text-muted small mb-2">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    {{ event.date | date: 'dd/MM/yyyy HH:mm' }}
-                  </p>
-                  <p class="text-muted small mb-2">
-                    <i class="bi bi-geo-alt me-1"></i>
-                    {{ event.location }}
-                  </p>
-                  <p class="text-muted small mb-3">
-                    <i class="bi bi-people me-1"></i>
-                    {{ event._count?.participants || 0 }} /
-                    {{ event.max_participants }} participantes
-                  </p>
+                <div class="card-body">
+                  <h5 class="card-title mb-3">{{ event.name }}</h5>
+
+                  <div class="event-info mb-3">
+                    <p class="text-muted small mb-2">
+                      <i class="bi bi-calendar3 me-2"></i>
+                      {{ event.date | date: 'dd/MM/yyyy HH:mm' }}
+                    </p>
+                    <p class="text-muted small mb-2">
+                      <i class="bi bi-geo-alt me-2"></i>
+                      {{ event.location }}
+                    </p>
+                    <p class="text-muted small mb-0">
+                      <i class="bi bi-people me-2"></i>
+                      {{ event._count?.participants || 0 }} /
+                      {{ event.max_participants }} participantes
+                    </p>
+                  </div>
 
                   <p class="card-text text-truncate mb-3">
                     {{ event.description }}
@@ -176,6 +200,59 @@ import { DatePipe } from '@angular/common';
       }
     </div>
   `,
+  styles: [`
+    .event-card {
+      overflow: hidden;
+      transition: transform 0.2s ease;
+    }
+
+    .event-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .event-banner {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, var(--bs-gray-200) 0%, var(--bs-gray-300) 100%);
+      overflow: hidden;
+    }
+
+    .event-image {
+      object-fit: cover;
+    }
+
+    .event-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.1) 100%);
+    }
+
+    .event-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--bs-gray-300) 0%, var(--bs-gray-400) 100%);
+    }
+
+    .placeholder-icon {
+      font-size: 4rem;
+      color: var(--bs-gray-500);
+      opacity: 0.5;
+    }
+
+    .event-info {
+      border-left: 3px solid var(--bs-primary);
+      padding-left: 1rem;
+    }
+
+    .card-text {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'd-block' },
 })
@@ -202,7 +279,6 @@ export class EventsComponent {
     this.loading.set(true);
     this.eventService.getEvents(this.filters).subscribe({
       next: (res) => {
-        // Validar que la respuesta tenga la estructura esperada
         if (!res || !res.data || !res.pagination) {
           console.error('Respuesta inválida de la API:', res);
           this.events.set([]);
@@ -212,6 +288,14 @@ export class EventsComponent {
           this.loading.set(false);
           return;
         }
+
+        // 🔥 Debug: ver las fotos de los eventos
+        console.log('📸 Eventos con fotos:', res.data.map(e => ({
+          id: e.id,
+          name: e.name,
+          photos: e.photos,
+          photoUrl: e.photoUrl
+        })));
 
         this.events.set(res.data);
         this.currentPage.set(res.pagination.page);

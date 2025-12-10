@@ -21,7 +21,7 @@ export class ApprovalService {
     if (filters?.eventId) params = params.set('eventId', filters.eventId);
 
     return this.http
-      .get<ApiResponse<Approval[]>>(`${this.apiUrl}/participants/pending`, { params })
+      .get<ApiResponse<Approval[]>>(`${this.apiUrl}/all_participants`, { params })
       .pipe(
         map((response) =>
           response.data.map((approval) => this.transformToParticipantDetail(approval))

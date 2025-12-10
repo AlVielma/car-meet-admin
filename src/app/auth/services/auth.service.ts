@@ -4,11 +4,11 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SessionService } from '../../core/services/session.service';
 import { ENV } from '../../core/config/env';
-import type {
-  LoginPayload,
-  LoginResponse,
+import type { 
+  LoginPayload, 
+  LoginResponse, 
   TwoFactorPayload,
-  User
+  User 
 } from '../models/auth.models';
 
 @Injectable({
@@ -37,6 +37,7 @@ export class AuthService {
     const response = await firstValueFrom(
       this.http.post<LoginResponse>(`${ENV.apiBaseUrl}/auth/login`, payload)
     );
+    console.log('Login response:', response);
     return response;
   }
 
@@ -44,6 +45,7 @@ export class AuthService {
     const response = await firstValueFrom(
       this.http.post<LoginResponse>(`${ENV.apiBaseUrl}/auth/admin-login`, payload)
     );
+    console.log('Admin login response:', response);
     return response;
   }
 
@@ -52,10 +54,21 @@ export class AuthService {
       this.http.post<LoginResponse>(`${ENV.apiBaseUrl}/auth/verify-code`, payload)
     );
 
-    this.session.setToken(response.token);
-    this.session.setUser(response.user);
+    console.log('Verify 2FA response:', response);
+
+    // Manejar diferentes formatos de respuesta
+    const token = response.data?.token || response.token;
+    const user = response.data?.user || response.user;
+
+    if (!token || !user) {
+      console.error('Token o usuario no encontrado en la respuesta:', response);
+      throw new Error('Respuesta inválida del servidor');
+    }
+
+    this.session.setToken(token);
+    this.session.setUser(user);
     this.isAuthenticated.set(true);
-    this.currentUser.set(response.user);
+    this.currentUser.set(user);
   }
 
   async resendTwoFactorCode(email: string): Promise<void> {

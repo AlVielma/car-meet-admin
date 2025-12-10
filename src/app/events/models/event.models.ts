@@ -1,21 +1,31 @@
 export interface Event {
   id: number;
+  organizerId: number;
   name: string;
   description: string;
-  date: string;
   location: string;
+  date: string;
+  startTime: string;
+  endTime?: string;
+  status: 'DRAFT' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
   max_participants: number;
-  status: 'ACTIVE' | 'CANCELLED' | 'FINISHED';
-  organizer_id: number;
-  organizer?: {
+  photoPath?: string;
+  photoUrl?: string;
+  photos?: Array<{
     id: number;
-    name: string;
-    email: string;
-  };
-  created_at: string;
-  updated_at: string;
+    url: string;
+    caption?: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
   _count?: {
     participants: number;
+  };
+  organizer?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
   };
 }
 
@@ -55,10 +65,34 @@ export interface UpdateEventDto extends Partial<CreateEventDto> {
 }
 
 export interface EventFilters {
-  status?: string;
-  search?: string;
-  startDate?: string;
-  endDate?: string;
   page?: number;
   limit?: number;
+  status?: string;
+  organizerId?: number;
+  upcoming?: boolean;
+  search?: string;
+}
+
+export interface EventsResponse {
+  data: Event[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    totalItems: number;
+  };
+}
+
+export interface CreateEventPayload {
+  name: string;
+  description: string;
+  location: string;
+  date: string;
+  startTime: string;
+  endTime?: string;
+  photo?: File;
+}
+
+export interface UpdateEventPayload extends Partial<CreateEventPayload> {
+  status?: 'DRAFT' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
 }

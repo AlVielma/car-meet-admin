@@ -1,10 +1,14 @@
 export interface User {
   id: string;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: 'admin' | 'user';
+  role_id?: number;
   isActive: boolean;
   profileImage?: string;
+  phone?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,9 +20,14 @@ export interface LoginPayload {
 }
 
 export interface LoginResponse {
+  success: boolean;
   message: string;
-  token: string;
-  user: User;
+  data?: {
+    token: string;
+    user: User;
+  };
+  token?: string;
+  user?: User;
 }
 
 export interface TwoFactorPayload {

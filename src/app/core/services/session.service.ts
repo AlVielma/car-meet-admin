@@ -13,7 +13,13 @@ export class SessionService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (token) {
+
+    } else {
+      console.warn('No hay token en localStorage');
+    }
+    return token;
   }
 
   removeToken(): void {
@@ -27,11 +33,15 @@ export class SessionService {
   getUser(): User | null {
     const userData = localStorage.getItem(this.USER_KEY);
     if (!userData) {
+
       return null;
     }
     try {
-      return JSON.parse(userData) as User;
+      const user = JSON.parse(userData) as User;
+
+      return user;
     } catch {
+
       return null;
     }
   }
