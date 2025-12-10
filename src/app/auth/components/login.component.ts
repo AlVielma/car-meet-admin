@@ -1,9 +1,42 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  ReactiveFormsModule,
+  Validators,
+  AbstractControl,
+  ValidationErrors,
+} from '@angular/forms';
 import { Router } from '@angular/router';
-import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
+import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha-2';
 import { AuthService } from '../services/auth.service';
 import { NotifyService } from '../../core/services/notify.service';
+
+// Validador personalizado para contraseña segura
+function strongPasswordValidator(control: AbstractControl): ValidationErrors | null {
+  const value = control.value;
+
+  if (!value) {
+    return null;
+  }
+
+  const hasUpperCase = /[A-Z]/.test(value);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value);
+  const hasMinLength = value.length >= 8;
+
+  const passwordValid = hasUpperCase && hasSpecialChar && hasMinLength;
+
+  if (!passwordValid) {
+    return {
+      strongPassword: {
+        hasUpperCase,
+        hasSpecialChar,
+        hasMinLength,
+      },
+    };
+  }
+
+  return null;
+}
 
 @Component({
   selector: 'app-login',
@@ -57,7 +90,21 @@ import { NotifyService } from '../../core/services/notify.service';
                     autocomplete="current-password"
                   />
                   @if (invalid('password')) {
-                  <div class="invalid-feedback">La contraseña debe tener al menos 8 caracteres</div>
+                  <div class="invalid-feedback">
+                    @if (form.controls.password.errors?.['required']) { La contraseña es requerida }
+                    @else if (form.controls.password.errors?.['strongPassword']) {
+                    <div>La contraseña debe contener:</div>
+                    <ul class="mb-0 ps-3">
+                      @if (!form.controls.password.errors?.['strongPassword'].hasMinLength) {
+                      <li>Mínimo 8 caracteres</li>
+                      } @if (!form.controls.password.errors?.['strongPassword'].hasUpperCase) {
+                      <li>Al menos una letra mayúscula</li>
+                      } @if (!form.controls.password.errors?.['strongPassword'].hasSpecialChar) {
+                      <li>Al menos un carácter especial (!@#$%^&*...)</li>
+                      }
+                    </ul>
+                    }
+                  </div>
                   }
                 </div>
 
@@ -181,6 +228,11 @@ import { NotifyService } from '../../core/services/notify.service';
         border: 1px solid var(--bs-danger);
       }
 
+      .invalid-feedback ul {
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+      }
+
       h1,
       h2 {
         color: #fff;
@@ -229,7 +281,7 @@ export class LoginComponent {
 
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.required, strongPasswordValidator]],
     recaptchaToken: ['', [Validators.required]],
   });
 
