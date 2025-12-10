@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha-2';
 import { AuthService } from '../services/auth.service';
 import { NotifyService } from '../../core/services/notify.service';
 
 @Component({
   selector: 'app-two-factor',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RecaptchaModule, RecaptchaFormsModule],
   template: `
     <div class="login-container overflow-hidden">
       <div class="row justify-content-center align-items-center min-vh-100 py-5">
@@ -45,7 +46,11 @@ import { NotifyService } from '../../core/services/notify.service';
                   />
                   @if (invalid('code')) {
                     <div class="invalid-feedback text-center">
-                      Ingresa un código de 6 dígitos
+                      @if (form.controls.code.errors?.['required']) {
+                        El código es requerido
+                      } @else if (form.controls.code.errors?.['pattern']) {
+                        Ingresa un código de 6 dígitos
+                      }
                     </div>
                   }
                   <div class="form-text text-center mt-2">
@@ -53,6 +58,28 @@ import { NotifyService } from '../../core/services/notify.service';
                     El código expira en 5 minutos
                   </div>
                 </div>
+
+                <div class="mb-4 d-flex justify-content-center">
+                  <re-captcha
+                    formControlName="recaptchaToken"
+                    (resolved)="onCaptchaResolved($event)"
+                    (error)="onCaptchaError()"
+                  ></re-captcha>
+                </div>
+
+                @if (invalid('recaptchaToken')) {
+                  <div class="alert alert-danger mb-4 d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span>Por favor completa el captcha de seguridad</span>
+                  </div>
+                }
+
+                @if (errorMessage()) {
+                  <div class="alert alert-danger mb-4 d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span>{{ errorMessage() }}</span>
+                  </div>
+                }
 
                 <button 
                   class="btn btn-primary btn-lg w-100 fw-semibold mb-3" 
@@ -184,14 +211,21 @@ import { NotifyService } from '../../core/services/notify.service';
       font-size: 0.9rem;
     }
 
- h1, h2 {
+    .alert-danger {
+      border-radius: 0.5rem;
+      border: none;
+      background-color: rgba(220, 53, 69, 0.1);
+      color: var(--bs-danger);
+      border: 1px solid var(--bs-danger);
+    }
+
+    h1, h2 {
       color: #fff;
     }
 
     .text-muted {
-     color: rgb(255 255 255 / 75%) !important;
+      color: rgb(255 255 255 / 75%) !important;
     }
-
 
     .text-light {
       color: rgba(255, 255, 255, 0.8) !important;
@@ -199,6 +233,10 @@ import { NotifyService } from '../../core/services/notify.service';
 
     .text-light:hover {
       color: rgba(255, 255, 255, 1) !important;
+    }
+
+    re-captcha {
+      display: inline-block;
     }
 
     @media (max-width: 576px) {
@@ -219,6 +257,11 @@ import { NotifyService } from '../../core/services/notify.service';
         font-size: 1.2rem;
         letter-spacing: 0.3rem;
       }
+
+      re-captcha {
+        transform: scale(0.85);
+        transform-origin: center;
+      }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -234,13 +277,19 @@ export class TwoFactorComponent {
   submitting = signal(false);
   resending = signal(false);
   email = signal<string>('');
+  errorMessage = signal<string | null>(null);
 
   form = this.fb.group({
     code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
+    recaptchaToken: ['', [Validators.required]],
   });
 
   constructor() {
     const emailParam = this.route.snapshot.queryParamMap.get('email') ?? '';
+    if (!emailParam) {
+      this.router.navigate(['/auth/login']);
+      return;
+    }
     this.email.set(emailParam);
   }
 
@@ -249,28 +298,59 @@ export class TwoFactorComponent {
     return c.invalid && (c.dirty || c.touched);
   };
 
+  onCaptchaResolved(token: string | null) {
+    if (token) {
+      this.form.patchValue({ recaptchaToken: token });
+      this.errorMessage.set(null);
+    }
+  }
+
+  onCaptchaError() {
+    this.form.patchValue({ recaptchaToken: '' });
+    this.notify.error('Error al cargar el captcha. Recarga la página.');
+  }
+
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
+
     const code = this.form.controls.code.value ?? '';
+    const recaptchaToken = this.form.controls.recaptchaToken.value ?? '';
     const email = this.email();
 
     this.submitting.set(true);
+    this.errorMessage.set(null);
+
     const auth = this.auth as AuthService & {
-      verifyTwoFactorCode: (payload: { email: string; code: string }) => Promise<void>;
+      verifyTwoFactorCode: (payload: { 
+        email: string; 
+        code: string; 
+        recaptchaToken: string;
+      }) => Promise<void>;
     };
+
     auth
-      .verifyTwoFactorCode({ email, code })
+      .verifyTwoFactorCode({ email, code, recaptchaToken })
       .then(async () => {
         this.submitting.set(false);
         this.notify.success('Inicio de sesión exitoso');
         await this.router.navigate(['/dashboard']);
       })
-      .catch(() => {
+      .catch((error) => {
         this.submitting.set(false);
-        this.notify.error('Código inválido o expirado');
+        this.form.patchValue({ recaptchaToken: '' });
+        
+        let message = 'Código inválido o expirado';
+        if (error?.error?.message) {
+          message = error.error.message;
+        } else if (error?.message) {
+          message = error.message;
+        }
+        
+        this.errorMessage.set(message);
+        this.notify.error(message);
       });
   }
 
@@ -281,15 +361,28 @@ export class TwoFactorComponent {
     };
 
     this.resending.set(true);
+    this.errorMessage.set(null);
+
     auth
       .resendTwoFactorCode(email)
       .then(() => {
         this.resending.set(false);
         this.notify.success('Código reenviado. Revisa tu correo');
+        // Reset form
+        this.form.patchValue({ code: '', recaptchaToken: '' });
       })
-      .catch(() => {
+      .catch((error) => {
         this.resending.set(false);
-        this.notify.error('No se pudo reenviar el código');
+        
+        let message = 'No se pudo reenviar el código';
+        if (error?.error?.message) {
+          message = error.error.message;
+        } else if (error?.message) {
+          message = error.message;
+        }
+        
+        this.errorMessage.set(message);
+        this.notify.error(message);
       });
   }
 }

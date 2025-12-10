@@ -156,23 +156,22 @@ export class AdminShellComponent {
 
   // Derivados
   email = () => this.session.email();
-initials = computed(() => {
-  const e = this.email();
-  if (!e) return 'A';
-  const [first] = e.split('@');
-  return (first?.[0] ?? 'A').toUpperCase();
-});
-//log para ver que taer el email
-
-constructor() {
-  effect(() => {
-    const t = this.theme();
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-bs-theme', t);
-      try { localStorage.setItem('theme', t); } catch {}
-    }
+  initials = computed(() => {
+    const e = this.email();
+    if (!e) return 'A';
+    const [first] = e.split('@');
+    return (first?.[0] ?? 'A').toUpperCase();
   });
-}
+
+  constructor() {
+    effect(() => {
+      const t = this.theme();
+      if (typeof document !== 'undefined') {
+        document.documentElement.setAttribute('data-bs-theme', t);
+        try { localStorage.setItem('theme', t); } catch {}
+      }
+    });
+  }
 
   // Sidebar desktop
   toggleSidebar() { this.sidebarCollapsed.update(v => !v); }
@@ -196,17 +195,13 @@ constructor() {
   toggleTheme() { this.theme.update(t => (t === 'dark' ? 'light' : 'dark')); }
 
   // Sesión
-  logout() {
-    this.auth.logout().subscribe({
-      next: async () => {
-        this.session.clear();
-        this.notify.info('Sesión cerrada.');
-        await this.router.navigate(['/auth/login']);
-      },
-      error: async () => {
-        this.session.clear();
-        await this.router.navigate(['/auth/login']);
-      },
-    });
+  async logout() {
+    try {
+      await this.auth.logout();
+      this.notify.info('Sesión cerrada.');
+    } catch {
+      this.session.clear();
+      await this.router.navigate(['/auth/login']);
+    }
   }
 }

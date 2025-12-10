@@ -72,7 +72,7 @@ function strongPasswordValidator(control: AbstractControl): ValidationErrors | n
                     autocomplete="email"
                   />
                   @if (invalid('email')) {
-                  <div class="invalid-feedback">Por favor ingresa un correo válido</div>
+                    <div class="invalid-feedback">Por favor ingresa un correo válido</div>
                   }
                 </div>
 
@@ -90,21 +90,24 @@ function strongPasswordValidator(control: AbstractControl): ValidationErrors | n
                     autocomplete="current-password"
                   />
                   @if (invalid('password')) {
-                  <div class="invalid-feedback">
-                    @if (form.controls.password.errors?.['required']) { La contraseña es requerida }
-                    @else if (form.controls.password.errors?.['strongPassword']) {
-                    <div>La contraseña debe contener:</div>
-                    <ul class="mb-0 ps-3">
-                      @if (!form.controls.password.errors?.['strongPassword'].hasMinLength) {
-                      <li>Mínimo 8 caracteres</li>
-                      } @if (!form.controls.password.errors?.['strongPassword'].hasUpperCase) {
-                      <li>Al menos una letra mayúscula</li>
-                      } @if (!form.controls.password.errors?.['strongPassword'].hasSpecialChar) {
-                      <li>Al menos un carácter especial (!@#$%^&*...)</li>
+                    <div class="invalid-feedback">
+                      @if (form.controls.password.errors?.['required']) {
+                        La contraseña es requerida
+                      } @else if (form.controls.password.errors?.['strongPassword']) {
+                        <div>La contraseña debe contener:</div>
+                        <ul class="mb-0 ps-3">
+                          @if (!form.controls.password.errors?.['strongPassword'].hasMinLength) {
+                            <li>Mínimo 8 caracteres</li>
+                          }
+                          @if (!form.controls.password.errors?.['strongPassword'].hasUpperCase) {
+                            <li>Al menos una letra mayúscula</li>
+                          }
+                          @if (!form.controls.password.errors?.['strongPassword'].hasSpecialChar) {
+                            <li>Al menos un carácter especial (!@#$%^&*...)</li>
+                          }
+                        </ul>
                       }
-                    </ul>
-                    }
-                  </div>
+                    </div>
                   }
                 </div>
 
@@ -117,10 +120,10 @@ function strongPasswordValidator(control: AbstractControl): ValidationErrors | n
                 </div>
 
                 @if (invalid('recaptchaToken')) {
-                <div class="alert alert-danger mb-4 d-flex align-items-center">
-                  <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                  <span>Por favor completa el captcha de seguridad</span>
-                </div>
+                  <div class="alert alert-danger mb-4 d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span>Por favor completa el captcha de seguridad</span>
+                  </div>
                 }
 
                 <button
@@ -129,18 +132,20 @@ function strongPasswordValidator(control: AbstractControl): ValidationErrors | n
                   [disabled]="submitting()"
                 >
                   @if (submitting()) {
-                  <span class="spinner-border spinner-border-sm me-2"></span>
-                  Iniciando sesión... } @else {
-                  <i class="bi bi-box-arrow-in-right me-2"></i>
-                  Iniciar sesión }
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Iniciando sesión...
+                  } @else {
+                    <i class="bi bi-box-arrow-in-right me-2"></i>
+                    Iniciar sesión
+                  }
                 </button>
               </form>
 
               @if (message()) {
-              <div class="alert alert-info mt-4 mb-0 d-flex align-items-center">
-                <i class="bi bi-info-circle-fill me-2"></i>
-                <span>{{ message() }}</span>
-              </div>
+                <div class="alert alert-info mt-4 mb-0 d-flex align-items-center">
+                  <i class="bi bi-info-circle-fill me-2"></i>
+                  <span>{{ message() }}</span>
+                </div>
               }
             </div>
           </div>
@@ -314,8 +319,9 @@ export class LoginComponent {
       recaptchaToken: string;
     };
 
+    // Usar adminLogin en lugar de login
     this.auth
-      .login({ email, password, recaptchaToken })
+      .adminLogin({ email, password, recaptchaToken })
       .then(async () => {
         this.submitting.set(false);
         this.notify.info('Se envió el código 2FA a tu correo.');
@@ -324,7 +330,7 @@ export class LoginComponent {
       .catch((error) => {
         this.submitting.set(false);
         this.form.patchValue({ recaptchaToken: '' });
-        const message = error?.error?.message || 'Credenciales inválidas o error en el servidor.';
+        const message = error?.error?.message || 'Credenciales inválidas o acceso denegado.';
         this.notify.error(message);
       });
   }

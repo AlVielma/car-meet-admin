@@ -1,64 +1,73 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { ENV } from '../../core/config/env';
+import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { SessionService } from '../../core/services/session.service';
+import { ENV } from '../../core/config/env';
+import type {
+  LoginPayload,
+  LoginResponse,
+  TwoFactorPayload,
+  User
+} from '../models/auth.models';
 
-export type LoginPayload = { email: string; password: string; recaptchaToken: string };
-export type VerifyCodePayload = { email: string; code: string; recaptchaToken: string };
-
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root',
+})
 export class AuthService {
-  private readonly http = inject(HttpClient);
-  private readonly session = inject(SessionService);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private session = inject(SessionService);
 
-  pending = signal(false);
-  lastMessage = signal<string | null>(null);
+  isAuthenticated = signal(false);
+  currentUser = signal<User | null>(null);
 
-  async login(payload: LoginPayload): Promise<void> {
-    this.pending.set(true);
-    this.lastMessage.set(null);
-    try {
-      // Paso 1: valida credenciales y envía código
-      const res = await this.http.post(`${ENV.apiBaseUrl}/auth/login`, payload).toPromise();
-      if (res) this.lastMessage.set('Se envió el código 2FA a tu correo.');
-    } finally {
-      this.pending.set(false);
+  constructor() {
+    const token = this.session.getToken();
+    if (token) {
+      this.isAuthenticated.set(true);
+      const user = this.session.getUser();
+      if (user) {
+        this.currentUser.set(user);
+      }
     }
   }
 
-  async verifyTwoFactorCode(payload: VerifyCodePayload): Promise<void> {
-    // La API responde: { success, message, data: { token, user } }
-    const res = await this.http
-      .post<{ success: boolean; message?: string; data?: { token: string; user: any } }>(
-        `${ENV.apiBaseUrl}/auth/verify-code`,
-        payload
-      )
-      .toPromise();
+  async login(payload: LoginPayload): Promise<LoginResponse> {
+    const response = await firstValueFrom(
+      this.http.post<LoginResponse>(`${ENV.apiBaseUrl}/auth/login`, payload)
+    );
+    return response;
+  }
 
-    const token = res?.data?.token;
-    const user = res?.data?.user;
+  async adminLogin(payload: LoginPayload): Promise<LoginResponse> {
+    const response = await firstValueFrom(
+      this.http.post<LoginResponse>(`${ENV.apiBaseUrl}/auth/admin-login`, payload)
+    );
+    return response;
+  }
 
-    if (!token) {
-      throw new Error('Token no recibido');
-    }
+  async verifyTwoFactorCode(payload: TwoFactorPayload): Promise<void> {
+    const response = await firstValueFrom(
+      this.http.post<LoginResponse>(`${ENV.apiBaseUrl}/auth/verify-code`, payload)
+    );
 
-    this.session.setToken(token);
-    if (user) {
-      this.session.setUser({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-      });
-    }
+    this.session.setToken(response.token);
+    this.session.setUser(response.user);
+    this.isAuthenticated.set(true);
+    this.currentUser.set(response.user);
   }
 
   async resendTwoFactorCode(email: string): Promise<void> {
-    await this.http.post(`${ENV.apiBaseUrl}/auth/resend-code`, { email }).toPromise();
+    await firstValueFrom(
+      this.http.post(`${ENV.apiBaseUrl}/auth/resend-code`, { email })
+    );
   }
 
-  logout(): Observable<void> {
-    return this.http.post<void>(`${ENV.apiBaseUrl}/auth/logout`, {});
+  async logout(): Promise<void> {
+    this.session.clear();
+    this.isAuthenticated.set(false);
+    this.currentUser.set(null);
+    await this.router.navigate(['/auth/login']);
   }
 }
