@@ -9,6 +9,7 @@ import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EventService } from './services/event.service';
 import { NotifyService } from '../core/services/notify.service';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-event-new',
@@ -194,7 +195,7 @@ import { NotifyService } from '../core/services/notify.service';
 
           <!-- Preview -->
           <div class="col-lg-4">
-            <div class="card sticky-top" [style.top.px]="20">
+            <div class="card sticky-top" [style.top.px]="70">
               <div class="card-body">
                 <h6 class="card-title mb-3">Vista previa</h6>
                 
@@ -333,7 +334,12 @@ export class EventNewComponent {
         this.loading.set(false);
       },
       error: () => {
-        this.notify.error('Error al cargar el evento');
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo cargar el evento',
+          icon: 'error',
+          confirmButtonColor: '#0d6efd',
+        });
         this.loading.set(false);
         this.router.navigate(['/events']);
       },
@@ -384,11 +390,22 @@ export class EventNewComponent {
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      Swal.fire({
+        title: 'Formulario incompleto',
+        text: 'Por favor completa todos los campos requeridos',
+        icon: 'warning',
+        confirmButtonColor: '#0d6efd',
+      });
       return;
     }
 
     if (this.selectedFile() && !this.isValidImage()) {
-      this.notify.error('La imagen seleccionada no es válida');
+      Swal.fire({
+        title: 'Imagen inválida',
+        text: 'La imagen debe ser JPG, PNG o WebP y menor a 5MB',
+        icon: 'error',
+        confirmButtonColor: '#0d6efd',
+      });
       return;
     }
 
@@ -418,14 +435,32 @@ export class EventNewComponent {
 
     request$.subscribe({
       next: () => {
-        const message = this.isEditMode() ? 'Evento actualizado exitosamente' : 'Evento creado exitosamente';
-        this.notify.success(message);
+        const title = this.isEditMode() ? '¡Actualizado!' : '¡Creado!';
+        const text = this.isEditMode() 
+          ? 'El evento ha sido actualizado exitosamente' 
+          : 'El evento ha sido creado exitosamente';
+
+        Swal.fire({
+          title,
+          text,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+
         this.router.navigate(['/events']);
       },
       error: (err) => {
         console.error('Error:', err);
         const message = err?.error?.message || 'Error al procesar el evento';
-        this.notify.error(message);
+        
+        Swal.fire({
+          title: 'Error',
+          text: message,
+          icon: 'error',
+          confirmButtonColor: '#0d6efd',
+        });
+        
         this.submitting.set(false);
       },
     });

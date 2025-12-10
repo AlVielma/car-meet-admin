@@ -9,6 +9,7 @@ import { DatePipe, NgOptimizedImage } from '@angular/common';
 import { EventService } from './services/event.service';
 import { NotifyService } from '../core/services/notify.service';
 import type { Event } from './models/event.models';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-event-detail',
@@ -62,7 +63,7 @@ import type { Event } from './models/event.models';
                   <p class="mb-0">
                     <i class="bi bi-people me-2 text-primary"></i>
                     <strong>Participantes:</strong> 
-                    {{ event()!._count?.participants || 0 }} / {{ event()!.max_participants }}
+                    {{ event()!._count?.participants || 0 }}
                   </p>
                 </div>
 
@@ -193,21 +194,58 @@ export class EventDetailComponent {
       },
       error: (err) => {
         console.error('Error al cargar evento:', err);
-        this.notify.error('Error al cargar el evento');
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo cargar el evento',
+          icon: 'error',
+          confirmButtonColor: '#0d6efd',
+        });
         this.loading.set(false);
       },
     });
   }
 
-  deleteEvent() {
-    if (!confirm('¿Eliminar este evento?')) return;
-    
-    this.eventService.deleteEvent(this.event()!.id.toString()).subscribe({
+  async deleteEvent() {
+    const currentEvent = this.event();
+    if (!currentEvent) return;
+
+    const result = await Swal.fire({
+      title: '¿Eliminar evento?',
+      html: `
+        <p class="mb-2">Estás a punto de eliminar el evento:</p>
+        <p class="fw-bold mb-0">"${currentEvent.name}"</p>
+        <p class="text-muted small mt-2">Esta acción no se puede deshacer</p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    this.eventService.deleteEvent(currentEvent.id.toString()).subscribe({
       next: () => {
-        this.notify.success('Evento eliminado');
+        Swal.fire({
+          title: '¡Eliminado!',
+          text: 'El evento ha sido eliminado exitosamente',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
         this.router.navigate(['/events']);
       },
-      error: () => this.notify.error('Error al eliminar evento'),
+      error: () => {
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo eliminar el evento',
+          icon: 'error',
+          confirmButtonColor: '#0d6efd',
+        });
+      },
     });
   }
 

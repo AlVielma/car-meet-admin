@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { EventService } from './services/event.service';
 import { NotifyService } from '../core/services/notify.service';
 import type { Event, EventFilters } from './models/event.models';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-events',
@@ -123,8 +124,7 @@ import type { Event, EventFilters } from './models/event.models';
                     </p>
                     <p class="text-muted small mb-0">
                       <i class="bi bi-people me-2"></i>
-                      {{ event._count?.participants || 0 }} /
-                      {{ event.max_participants }} participantes
+                      {{ event._count?.participants || 0 }} participantes
                     </p>
                   </div>
 
@@ -142,7 +142,7 @@ import type { Event, EventFilters } from './models/event.models';
                     <button
                       class="btn btn-sm btn-outline-danger"
                       type="button"
-                      (click)="deleteEvent(event.id.toString())">
+                      (click)="deleteEvent(event)">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
@@ -289,14 +289,6 @@ export class EventsComponent {
           return;
         }
 
-        // 🔥 Debug: ver las fotos de los eventos
-        console.log('📸 Eventos con fotos:', res.data.map(e => ({
-          id: e.id,
-          name: e.name,
-          photos: e.photos,
-          photoUrl: e.photoUrl
-        })));
-
         this.events.set(res.data);
         this.currentPage.set(res.pagination.page);
         this.totalPages.set(res.pagination.totalPages);
@@ -329,14 +321,43 @@ export class EventsComponent {
     this.loadEvents();
   }
 
-  deleteEvent(id: string) {
-    if (!confirm('¿Eliminar este evento?')) return;
-    this.eventService.deleteEvent(id).subscribe({
+  async deleteEvent(event: Event) {
+    const result = await Swal.fire({
+      title: '¿Eliminar evento?',
+      html: `
+        <p class="mb-2">Estás a punto de eliminar el evento:</p>
+        <p class="fw-bold mb-0">"${event.name}"</p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    this.eventService.deleteEvent(event.id.toString()).subscribe({
       next: () => {
-        this.notify.success('Evento eliminado');
+        Swal.fire({
+          title: '¡Eliminado!',
+          text: 'El evento ha sido eliminado exitosamente',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
         this.loadEvents();
       },
-      error: () => this.notify.error('Error al eliminar evento'),
+      error: () => {
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo eliminar el evento',
+          icon: 'error',
+          confirmButtonColor: '#0d6efd',
+        });
+      },
     });
   }
 
